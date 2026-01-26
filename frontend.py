@@ -66,12 +66,16 @@ if prompt := st.chat_input("What are you looking for today?"):
                 cols = st.columns(2)
                 for i, item in enumerate(data["results"]):
                     with cols[i % 2]:
+                        # Use .get() to provide a fallback if 'title' or 'price_inr' is missing
+                        title = item.get('title', 'Product Name Not Available')
+                        price = item.get('price_inr', 'N/A')
+                        score = item.get('match_score', 0)
+                        
                         st.markdown(f"""
                         <div class="product-card">
-                            <h4>{item['title']}</h4>
-                            <p><b>Price:</b> ₹{item['price_inr']} | <b>Match:</b> {int(item['match_score']*100)}%</p>
-                            <p style="color: green;">✅ {item['pros'][0]}</p>
-                            <p style="color: gray; font-size: 0.9em;">{item['why_recommended']}</p>
+                            <h4>{title}</h4>
+                            <p><b>Price:</b> ₹{price} | <b>Match:</b> {int(score*100)}%</p>
+                            <p style="color: gray; font-size: 0.9em;">{item.get('why_recommended', '')}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
