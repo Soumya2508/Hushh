@@ -1,0 +1,110 @@
+[
+  {
+    "product_id": "snkr-001",
+    "title": "Minimalist White Sneaker",
+    "price_inr": 2200,
+    "brand": "StepClean",
+    "style_keywords": ["minimal", "white", "sleek"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-002",
+    "title": "Chunky White Max",
+    "price_inr": 2400,
+    "brand": "UrbanCloud",
+    "style_keywords": ["chunky", "white", "bold"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-003",
+    "title": "Classic Court White",
+    "price_inr": 1800,
+    "brand": "Heritage",
+    "style_keywords": ["minimal", "white", "classic"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-004",
+    "title": "Urban Low Trainer",
+    "price_inr": 2100,
+    "brand": "StreetVibe",
+    "style_keywords": ["minimal", "white", "urban"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-005",
+    "title": "Pro Leather White",
+    "price_inr": 2450,
+    "brand": "Classics",
+    "style_keywords": ["minimal", "white", "leather"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-006",
+    "title": "Lite Walk Breathable",
+    "price_inr": 1500,
+    "brand": "SummerBreeze",
+    "style_keywords": ["minimal", "white", "breathable"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-007",
+    "title": "Essential Daily Sneaker",
+    "price_inr": 1950,
+    "brand": "StepClean",
+    "style_keywords": ["minimal", "white", "everyday"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-008",
+    "title": "Cloud Walk Soft",
+    "price_inr": 2250,
+    "brand": "UrbanCloud",
+    "style_keywords": ["minimal", "white", "soft"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-009",
+    "title": "Premium White High",
+    "price_inr": 3200,
+    "brand": "Heritage",
+    "style_keywords": ["minimal", "white", "premium"],
+    "category": "footwear",
+    "size": "9"
+  },
+  {
+    "product_id": "snkr-010",
+    "title": "Retro White Sole",
+    "price_inr": 2300,
+    "brand": "Classics",
+    "style_keywords": ["minimal", "white", "retro"],
+    "category": "footwear",
+    "size": "8"
+  },
+  {
+    "product_id": "top-011",
+    "title": "White Linen Shirt",
+    "price_inr": 2300,
+    "brand": "SummerBreeze",
+    "style_keywords": ["breathable", "white", "beach"],
+    "category": "apparel",
+    "size": "L"
+  },
+  {
+    "product_id": "bot-012",
+    "title": "Beige Chino Pants",
+    "price_inr": 2100,
+    "brand": "Heritage",
+    "style_keywords": ["smart-casual", "beige", "slim-fit"],
+    "category": "apparel",
+    "size": "32"
+  }
+]

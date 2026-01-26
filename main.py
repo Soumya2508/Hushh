@@ -1,0 +1,92 @@
+import os
+import json
+import time
+import traceback
+import sys
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel
+from contextlib import asynccontextmanager
+from dotenv import load_dotenv
+load_dotenv()  # Explicitly load the .env file
+# IMPORT BOTH AGENTS
+from agent_core.logic import ShoppingAgent
+from agent_core.fashion_logic import FashionStylistAgent
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    os.makedirs("data", exist_ok=True)
+    for filename in ["memory.json", "catalog.json", "closet.json"]:
+        path = os.path.join("data", filename)
+        if not os.path.exists(path):
+            with open(path, "w") as f:
+                json.dump([] if filename != "catalog.json" else [
+                    {
+                        "product_id": "snkr-001", 
+                        "title": "Default Slim Sneaker", 
+                        "price_inr": 2000, 
+                        "size": "9", 
+                        "style_keywords": ["minimal", "white"]
+                    }
+                ], f)
+    yield
+
+app = FastAPI(title="Hushh Power Agent Platform", lifespan=lifespan)
+
+class AgentRequest(BaseModel):
+    user_id: str
+    message: str
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    start_time = time.time()
+    response = await call_next(request)
+    process_time = time.time() - start_time
+    print(f"Path: {request.url.path} | Duration: {process_time:.4f}s")
+    return response
+
+@app.post("/agents/run")
+async def run_agent(request: AgentRequest):
+    try:
+        msg = request.message.lower()
+        
+        # 1. INTENT ROUTER
+        if any(word in msg for word in ["style", "match", "wear with", "advice", "look"]):
+            print(f"--- ROUTING TO: FashionStylistAgent ---")
+            agent = FashionStylistAgent(user_id=request.user_id)
+        else:
+            print(f"--- ROUTING TO: ShoppingAgent ---")
+            agent = ShoppingAgent(user_id=request.user_id)
+        
+        # 2. ASYNC EXECUTION
+        response = await agent.process_request(request.message)
+        return response
+
+    # --- CRITICAL FIX: Handling TaskGroup Sub-Exceptions ---
+    except ExceptionGroup as eg:
+        print("\n" + "!"*60)
+        print("DIAGNOSTIC: UNPACKING TASKGROUP ERRORS")
+        for i, error in enumerate(eg.exceptions):
+            print(f"\n[SUB-ERROR {i+1}]:")
+            # This prints the actual traceback of the inner error
+            traceback.print_exception(type(error), error, error.__traceback__)
+        print("!"*60 + "\n")
+        
+        raise HTTPException(
+            status_code=500, 
+            detail={"error": "TaskGroup loop failed", "sub_errors": [str(e) for e in eg.exceptions]}
+        )
+    except Exception as e:
+        print(f"CRITICAL ERROR: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500, 
+            detail={"error": "General Agent failure", "trace": str(e)}
+        )
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy", "platform": "hushh-power-agent-mvp"}
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
