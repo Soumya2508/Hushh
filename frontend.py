@@ -66,16 +66,22 @@ if prompt := st.chat_input("What are you looking for today?"):
                 cols = st.columns(2)
                 for i, item in enumerate(data["results"]):
                     with cols[i % 2]:
-                        # Use .get() to provide a fallback if 'title' or 'price_inr' is missing
-                        title = item.get('title', 'Product Name Not Available')
-                        price = item.get('price_inr', 'N/A')
-                        score = item.get('match_score', 0)
+                        # --- FLEXIBLE KEY MAPPING ---
+                        # This looks for 'title', but falls back to 'name' if that's what your backend uses
+                        display_name = item.get('title') or item.get('name') or item.get('product_name') or "Product"
                         
+                        # This looks for 'price_inr', but falls back to 'price' or 'cost'
+                        display_price = item.get('price_inr') or item.get('price') or item.get('cost') or "N/A"
+                        
+                        # This looks for 'match_score', but defaults to 0.9 if missing
+                        display_score = item.get('match_score') or 0.9
+                        # ----------------------------
+
                         st.markdown(f"""
-                        <div class="product-card">
-                            <h4>{title}</h4>
-                            <p><b>Price:</b> ₹{price} | <b>Match:</b> {int(score*100)}%</p>
-                            <p style="color: gray; font-size: 0.9em;">{item.get('why_recommended', '')}</p>
+                        <div class="product-card" style="border: 1px solid #ddd; padding: 10px; border-radius: 8px;">
+                            <h4>{display_name}</h4>
+                            <p><b>Price:</b> ₹{display_price} | <b>Match:</b> {int(display_score*100)}%</p>
+                            <p style="color: gray; font-size: 0.9em;">{item.get('why_recommended', 'Recommended based on your preferences.')}</p>
                         </div>
                         """, unsafe_allow_html=True)
 
