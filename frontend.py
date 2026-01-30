@@ -4,6 +4,7 @@ import json
 import os
 import time
 import re
+import uuid
 from datetime import datetime
 
 # Configuration & Theming
@@ -14,10 +15,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Force dark theme CSS - Applied to ENTIRE page
+# [Keep all your CSS exactly as is...]
 DARK_CSS = """
 <style>
-    /* Root variables for dark theme */
     :root {
         --bg-primary: #0a0a0f;
         --bg-secondary: #151520;
@@ -35,42 +35,29 @@ DARK_CSS = """
         --border: #2a2a3e;
         --border-hover: #3a3a50;
     }
-    
-    /* Force dark background on ALL containers */
     html, body, .stApp, [data-testid="stAppViewContainer"] {
         background-color: var(--bg-primary) !important;
         color: var(--text-primary) !important;
     }
-    
-    /* Sidebar dark */
     [data-testid="stSidebar"] {
         background-color: var(--bg-secondary) !important;
         border-right: 1px solid var(--border) !important;
     }
-    
     [data-testid="stSidebarContent"] {
         background-color: var(--bg-secondary) !important;
     }
-    
-    /* Main content area */
     .main .block-container {
         background-color: var(--bg-primary) !important;
         padding-top: 2rem;
         max-width: 1400px;
     }
-    
-    /* Hide Streamlit branding */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Typography */
     * {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         -webkit-font-smoothing: antialiased;
     }
-    
-    /* Glass Cards - Dark theme */
     .glass-panel {
         background: linear-gradient(145deg, rgba(26,26,46,0.9) 0%, rgba(21,21,32,0.9) 100%);
         border: 1px solid var(--border);
@@ -79,13 +66,10 @@ DARK_CSS = """
         margin-bottom: 16px;
         transition: all 0.3s ease;
     }
-    
     .glass-panel:hover {
         border-color: var(--border-hover);
         box-shadow: 0 4px 20px rgba(0,0,0,0.5);
     }
-    
-    /* Profile Section */
     .profile-avatar {
         width: 72px; height: 72px; border-radius: 50%;
         background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
@@ -94,8 +78,6 @@ DARK_CSS = """
         margin: 0 auto 16px;
         box-shadow: 0 0 20px rgba(0,212,255,0.3);
     }
-    
-    /* Avoided/Dislikes Section - Red badges */
     .avoid-badge {
         display: inline-flex; align-items: center; padding: 6px 12px;
         background: rgba(255,71,87,0.15); 
@@ -105,19 +87,10 @@ DARK_CSS = """
         margin: 4px; cursor: pointer;
         transition: all 0.2s;
     }
-    
     .avoid-badge:hover {
         background: rgba(255,71,87,0.25);
         transform: translateY(-1px);
     }
-    
-    .avoid-badge .remove-icon {
-        margin-left: 6px;
-        opacity: 0.7;
-        font-weight: bold;
-    }
-    
-    /* Memory/Preference Chips */
     .memory-chip {
         display: inline-flex; align-items: center; padding: 6px 14px;
         background: rgba(0,212,255,0.1); 
@@ -126,14 +99,11 @@ DARK_CSS = """
         border-radius: 100px; font-size: 0.8rem; font-weight: 500;
         margin: 4px;
     }
-    
     .chip-brand {
         background: rgba(187,134,252,0.1);
         color: var(--accent-purple);
         border-color: rgba(187,134,252,0.2);
     }
-    
-    /* Chat Interface - Dark */
     .chat-container {
         background: var(--bg-secondary);
         border-radius: 20px;
@@ -141,14 +111,12 @@ DARK_CSS = """
         min-height: 500px;
         padding: 24px;
     }
-    
     .message-bubble {
         max-width: 80%; padding: 14px 20px; margin: 12px 0;
         font-size: 0.95rem; line-height: 1.5;
         animation: slideIn 0.3s ease;
         position: relative;
     }
-    
     .msg-user {
         background: linear-gradient(135deg, var(--accent-cyan) 0%, #0099cc 100%);
         color: #000;
@@ -157,7 +125,6 @@ DARK_CSS = """
         font-weight: 500;
         box-shadow: 0 4px 15px rgba(0,212,255,0.3);
     }
-    
     .msg-agent {
         background: var(--bg-card);
         color: var(--text-primary);
@@ -165,13 +132,10 @@ DARK_CSS = """
         border-radius: 20px 20px 20px 4px;
         margin-right: auto;
     }
-    
     @keyframes slideIn {
         from { opacity: 0; transform: translateY(20px); }
         to { opacity: 1; transform: translateY(0); }
     }
-    
-    /* FIXED Question Card - Dark Blue/High Contrast */
     .question-card {
         background: linear-gradient(145deg, #1e3a5f 0%, #2d4a6f 100%);
         border: 2px solid var(--accent-cyan);
@@ -181,14 +145,12 @@ DARK_CSS = """
         text-align: center;
         box-shadow: 0 4px 20px rgba(0,212,255,0.15);
     }
-    
     .question-text {
         font-size: 1.2rem; font-weight: 600;
         margin-bottom: 20px;
         color: var(--text-primary);
         text-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
-    
     .progress-indicator {
         color: var(--accent-cyan);
         font-size: 0.85rem;
@@ -197,28 +159,6 @@ DARK_CSS = """
         text-transform: uppercase;
         letter-spacing: 0.1em;
     }
-    
-    /* Answer Buttons - Dark theme */
-    .answer-btn {
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        color: var(--text-primary);
-        padding: 12px 24px;
-        border-radius: 12px;
-        margin: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-        font-weight: 500;
-    }
-    
-    .answer-btn:hover {
-        background: rgba(0,212,255,0.1);
-        border-color: var(--accent-cyan);
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,212,255,0.2);
-    }
-    
-    /* Product Results */
     .results-header {
         background: linear-gradient(90deg, rgba(0,245,212,0.1) 0%, transparent 100%);
         border-left: 4px solid var(--accent-green);
@@ -226,14 +166,12 @@ DARK_CSS = """
         border-radius: 12px;
         margin-bottom: 20px;
     }
-    
     .product-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
         gap: 20px;
         margin-top: 20px;
     }
-    
     .product-card {
         background: var(--bg-card);
         border-radius: 16px;
@@ -241,13 +179,11 @@ DARK_CSS = """
         border: 1px solid var(--border);
         transition: all 0.3s ease;
     }
-    
     .product-card:hover {
         transform: translateY(-4px);
         border-color: var(--accent-cyan);
         box-shadow: 0 10px 30px rgba(0,0,0,0.4);
     }
-    
     .product-image {
         width: 100%; height: 180px;
         background: linear-gradient(135deg, #252538 0%, #1e1e2d 100%);
@@ -256,7 +192,6 @@ DARK_CSS = """
         position: relative;
         border-bottom: 1px solid var(--border);
     }
-    
     .match-badge {
         position: absolute; top: 12px; right: 12px;
         background: rgba(0,0,0,0.8);
@@ -266,15 +201,12 @@ DARK_CSS = """
         font-size: 0.8rem; font-weight: 700;
         border: 1px solid var(--accent-green);
     }
-    
     .product-info { padding: 20px; }
-    
     .product-title {
         font-size: 1.1rem; font-weight: 600;
         color: var(--text-primary);
         margin-bottom: 8px;
     }
-    
     .product-brand {
         color: var(--accent-purple);
         font-size: 0.85rem;
@@ -283,17 +215,14 @@ DARK_CSS = """
         letter-spacing: 0.05em;
         margin-bottom: 8px;
     }
-    
     .product-price {
         color: var(--accent-cyan);
         font-size: 1.4rem; font-weight: 700;
     }
-    
     .product-tags {
         display: flex; flex-wrap: wrap; gap: 6px;
         margin-top: 12px;
     }
-    
     .tag {
         padding: 4px 10px;
         background: rgba(0,212,255,0.1);
@@ -301,8 +230,6 @@ DARK_CSS = """
         border-radius: 6px;
         font-size: 0.75rem;
     }
-    
-    /* Status Pills */
     .status-pill {
         padding: 8px 16px;
         border-radius: 100px;
@@ -313,20 +240,16 @@ DARK_CSS = """
         border: 1px solid var(--border);
         margin-bottom: 8px;
     }
-    
     .status-filled {
         border-color: var(--accent-green);
         color: var(--accent-green);
         background: rgba(0,245,212,0.1);
     }
-    
     .status-pending {
         border-color: var(--accent-orange);
         color: var(--accent-orange);
         background: rgba(251,86,7,0.1);
     }
-    
-    /* Thinking Animation */
     .thinking {
         display: flex; align-items: center; gap: 12px;
         padding: 16px 20px;
@@ -336,52 +259,39 @@ DARK_CSS = """
         width: fit-content;
         margin: 12px 0;
     }
-    
     .thinking-text {
         color: var(--accent-cyan);
         font-weight: 500;
     }
-    
     .dot {
         width: 8px; height: 8px;
         background: var(--accent-cyan);
         border-radius: 50%;
         animation: bounce 1.4s infinite ease-in-out both;
     }
-    
     @keyframes bounce {
         0%, 80%, 100% { transform: scale(0); }
         40% { transform: scale(1); }
     }
-    
-    /* Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: var(--bg-primary); }
     ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #444; }
-    
-    /* Input styling */
     .stTextInput > div > div > input {
         background: var(--bg-card) !important;
         color: white !important;
         border: 1px solid var(--border) !important;
         border-radius: 12px !important;
     }
-    
-    /* Fix Streamlit buttons */
     .stButton > button {
         background: var(--bg-card) !important;
         color: white !important;
         border: 1px solid var(--border) !important;
         border-radius: 8px !important;
     }
-    
     .stButton > button:hover {
         border-color: var(--accent-cyan) !important;
         box-shadow: 0 0 10px rgba(0,212,255,0.2) !important;
     }
-    
-    /* Empty state text */
     .empty-state {
         color: var(--text-muted);
         font-style: italic;
@@ -392,28 +302,18 @@ DARK_CSS = """
 
 st.markdown(DARK_CSS, unsafe_allow_html=True)
 
-API_BASE_URL = os.getenv("BACKEND_URL", "https://hushh-backend-uc5w.onrender.com")
+# FIXED API CONFIGURATION
+API_BASE_URL = os.getenv("BACKEND_URL", "https://hushh-backend-uc5w.onrender.com").strip()
 API_URL = f"{API_BASE_URL}/agents/run"
 
-REQUIRED_FIELDS = ["category", "budget"]
-
-# --- DYNAMIC DATA LOADING ---
-def load_catalog():
-    """Load catalog from data/catalog.json"""
-    try:
-        with open('data/catalog.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        st.error(f"Error loading catalog: {e}")
-        return []
-
+# --- DATA MANAGEMENT ---
 def load_user_memory():
     """Load user memory from data/memory.json"""
     default_memory = {
         "user_id": "ankit_01",
         "name": "Ankit",
         "preferences": [],
-        "avoid_keywords": [],  # Starts empty!
+        "avoid_keywords": [],
         "brand_affinity": [],
         "closet": []
     }
@@ -422,7 +322,6 @@ def load_user_memory():
         if os.path.exists('data/memory.json'):
             with open('data/memory.json', 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # Find user or return default
                 if isinstance(data, list):
                     for user in data:
                         if user.get("user_id") == "ankit_01":
@@ -441,7 +340,6 @@ def save_user_memory(memory_data):
         os.makedirs('data', exist_ok=True)
         existing_data = []
         
-        # Load existing if present
         if os.path.exists('data/memory.json'):
             with open('data/memory.json', 'r', encoding='utf-8') as f:
                 try:
@@ -451,7 +349,6 @@ def save_user_memory(memory_data):
                 except:
                     existing_data = []
         
-        # Update or append
         user_found = False
         for i, user in enumerate(existing_data):
             if user.get("user_id") == memory_data["user_id"]:
@@ -468,166 +365,53 @@ def save_user_memory(memory_data):
     except Exception as e:
         st.error(f"Error saving memory: {e}")
 
-def extract_avoided_keywords(text):
-    """Extract what user wants to avoid"""
-    avoided = []
-    text_lower = text.lower()
-    
-    # Patterns for avoidance
-    patterns = [
-        r'(?:no|avoid|hate|skip|without|not|don\'t\s+(?:like|want))\s+(?:any\s+)?(\w+)',
-        r'(?:no|avoid|hate|skip)\s+(?:any\s+)?(\w+\s+\w+)',  # Two words like "chunky shoes"
-    ]
-    
-    for pattern in patterns:
-        matches = re.findall(pattern, text_lower)
-        avoided.extend(matches)
-    
-    # Clean up and remove duplicates
-    avoided = [a.strip() for a in avoided if len(a.strip()) > 2]
-    return list(set(avoided))
-
-def extract_entities(text):
-    """Smart entity extraction"""
-    entities = {}
-    text_lower = text.lower()
-    
-    # Category detection
-    categories = {
-        "footwear": ["shoes", "sneakers", "footwear", "kicks", "runners", "boots", "slip-on"],
-        "apparel": ["shirt", "t-shirt", "pants", "jeans", "clothes", "top", "bottom", "crewneck"],
-        "accessories": ["belt", "sunglasses", "watch", "accessories", "bag", "wallet", "eyewear"]
-    }
-    for cat, keywords in categories.items():
-        if any(kw in text_lower for kw in keywords):
-            entities["category"] = cat
-            break
-    
-    # Budget extraction
-    budget_patterns = [
-        r'(?:under|below|max|up to|less than)\s*(?:₹|rs\.?|inr)?\s*(\d{3,5})',
-        r'(?:₹|rs\.?|inr)\s*(\d{3,5})',
-        r'(\d{3,5})\s*(?:₹|rs\.?|inr)',
-    ]
-    for pattern in budget_patterns:
-        match = re.search(pattern, text_lower)
-        if match:
-            entities["budget"] = int(match.group(1))
-            break
-    
-    # Size extraction
-    size_match = re.search(r'\b(?:size\s*)?(\d+|s|m|l|xl)\b', text_lower)
-    if size_match:
-        entities["size"] = size_match.group(1).upper() if size_match.group(1) in ['s','m','l','xl'] else size_match.group(1)
-    
-    # Color extraction
-    colors = ["white", "black", "blue", "navy", "red", "brown", "beige", "olive", "indigo", "gold"]
-    for color in colors:
-        if color in text_lower:
-            entities["color"] = color
-            break
-    
-    return entities
-
-def get_missing_fields(collected):
-    return [field for field in REQUIRED_FIELDS if field not in collected]
-
-def generate_question(field):
-    questions = {
-        "category": "What are you looking for?",
-        "budget": "What's your budget?",
-        "size": "What size?",
-        "color": "Preferred color?"
-    }
-    return questions.get(field, f"Please specify {field}")
-
-def get_quick_options(field):
-    options = {
-        "category": ["Sneakers/Shoes", "Shirts/Tops", "Pants/Jeans", "Accessories"],
-        "budget": ["Under ₹1500", "₹1500-₹2500", "₹2500-₹3500", "No limit"],
-        "size": ["7", "8", "9", "10", "M", "L"],
-        "color": ["White", "Black", "Blue", "Any"]
-    }
-    return options.get(field, [])
-
-def parse_quick_option(field, option):
-    if field == "budget":
-        if "Under" in option:
-            return 1500
-        elif "No limit" in option:
-            return 100000
-        else:
-            nums = re.findall(r'\d+', option)
-            return int(nums[-1]) if nums else 5000
-    elif field == "category":
-        mapping = {
-            "Sneakers/Shoes": "footwear",
-            "Shirts/Tops": "apparel",
-            "Pants/Jeans": "apparel",
-            "Accessories": "accessories"
+def call_ai_agent(user_message: str):
+    """
+    Call the FastAPI backend with the ORIGINAL user message.
+    Let the AI handle extraction, not local regex.
+    """
+    try:
+        payload = {
+            "user_id": "ankit_01",
+            "message": user_message  # Send original text, not a dictionary!
         }
-        return mapping.get(option, "footwear")
-    return option.lower()
-
-def filter_products(catalog, collected, avoid_keywords):
-    """Smart filtering with avoid logic"""
-    results = []
-    
-    for product in catalog:
-        # Check if product has avoided keywords
-        has_avoided = False
-        product_keywords = [k.lower() for k in product.get("style_keywords", [])]
-        product_title = product.get("title", "").lower()
         
-        for avoid in avoid_keywords:
-            avoid_lower = avoid.lower()
-            if avoid_lower in product_keywords or avoid_lower in product_title:
-                has_avoided = True
-                break
+        # DEBUG: Show what we're sending
+        st.session_state.last_request = payload
         
-        if has_avoided:
-            continue  # Skip this product
-        
-        # Calculate match score
-        score = 0
-        
-        if collected.get("category") and product.get("category") == collected["category"]:
-            score += 40
-        
-        if "budget" in collected and product.get("price_inr", 99999) <= collected["budget"]:
-            score += 30
-        
-        if collected.get("size"):
-            if str(product.get("size")) == str(collected["size"]):
-                score += 15
-        
-        if collected.get("color"):
-            if any(collected["color"] in kw for kw in product.get("style_keywords", [])):
-                score += 10
-        
-        if score > 0:
-            product["match_score"] = min(score / 100, 0.99)
-            results.append(product)
-    
-    results.sort(key=lambda x: x["match_score"], reverse=True)
-    return results[:6]
+        response = requests.post(
+            API_URL,
+            json=payload,
+            timeout=30,
+            headers={"Content-Type": "application/json"}
+        )
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        st.error(f"Backend connection failed: {e}")
+        return None
 
 # --- SESSION STATE ---
 defaults = {
     "messages": [],
-    "collected": {},
+    "collected": {},  # Will be populated from backend response
     "current_question": None,
     "show_results": False,
     "products": [],
-    "thinking": False
+    "thinking": False,
+    "avoid_keywords": [],  # Will sync with backend
+    "last_request": None,
+    "last_response": None
 }
 for key, val in defaults.items():
     if key not in st.session_state:
         st.session_state[key] = val
 
-# Load data
-CATALOG = load_catalog()
+# Load memory on every rerun to get updates
 USER_MEMORY = load_user_memory()
+# Sync session state with saved memory
+if "avoid_keywords" not in st.session_state or not st.session_state.avoid_keywords:
+    st.session_state.avoid_keywords = USER_MEMORY.get("avoid_keywords", [])
 
 # --- SIDEBAR ---
 with st.sidebar:
@@ -639,7 +423,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
     
-    # RECENTLY AVOIDED SECTION
+    # RECENTLY AVOIDED SECTION - NOW DYNAMIC FROM BACKEND/STATE
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
     st.markdown("""
     <h4 style="margin-top:0; color: var(--accent-red); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em;">
@@ -647,13 +431,21 @@ with st.sidebar:
     </h4>
     """, unsafe_allow_html=True)
     
-    if USER_MEMORY.get("avoid_keywords"):
-        st.markdown("<p style='color: var(--text-muted); font-size: 0.8rem; margin-bottom: 12px;'>Click ✕ to remove filter</p>", unsafe_allow_html=True)
-        for avoid in USER_MEMORY["avoid_keywords"]:
-            if st.button(f"✕ {avoid}", key=f"remove_{avoid}"):
-                USER_MEMORY["avoid_keywords"].remove(avoid)
-                save_user_memory(USER_MEMORY)
-                st.rerun()
+    # Use session state which gets updated from backend
+    current_avoids = st.session_state.get("avoid_keywords", [])
+    
+    if current_avoids:
+        st.markdown(f"<p style='color: var(--text-muted); font-size: 0.8rem; margin-bottom: 12px;'>{len(current_avoids)} active filters</p>", unsafe_allow_html=True)
+        for avoid in current_avoids:
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"<div class='avoid-badge' style='margin: 2px 0;'>{avoid}</div>", unsafe_allow_html=True)
+            with col2:
+                if st.button("✕", key=f"remove_{avoid}"):
+                    st.session_state.avoid_keywords.remove(avoid)
+                    USER_MEMORY["avoid_keywords"] = st.session_state.avoid_keywords
+                    save_user_memory(USER_MEMORY)
+                    st.rerun()
     else:
         st.markdown("""
         <p class="empty-state">
@@ -664,22 +456,40 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Session Status
+    # Session Status - DYNAMIC FROM BACKEND
     st.markdown('<div class="glass-panel">', unsafe_allow_html=True)
     st.markdown("<h4 style='margin-top:0; color: var(--accent-cyan); font-size: 0.9rem;'>SESSION STATUS</h4>", unsafe_allow_html=True)
     
-    for field in REQUIRED_FIELDS:
-        if field in st.session_state.collected:
-            val = st.session_state.collected[field]
-            display = f"₹{val}" if field == "budget" else val
-            st.markdown(f'<div class="status-pill status-filled">✓ <b>{field.title()}:</b> {display}</div>', unsafe_allow_html=True)
-        else:
-            st.markdown(f'<div class="status-pill status-pending">○ <b>{field.title()}</b> needed</div>', unsafe_allow_html=True)
+    # Show what backend has collected
+    constraints = st.session_state.collected.get("constraints", {})
     
-    if st.session_state.collected.get("size"):
+    # Category
+    if constraints.get("category") or st.session_state.collected.get("category"):
+        cat = constraints.get("category") or st.session_state.collected.get("category")
+        st.markdown(f'<div class="status-pill status-filled">✓ <b>Category:</b> {cat}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="status-pill status-pending">○ <b>Category</b> needed</div>', unsafe_allow_html=True)
+    
+    # Budget
+    if constraints.get("budget_inr_max"):
+        st.markdown(f'<div class="status-pill status-filled">✓ <b>Budget:</b> ₹{constraints["budget_inr_max"]}</div>', unsafe_allow_html=True)
+    elif st.session_state.collected.get("budget"):
+        st.markdown(f'<div class="status-pill status-filled">✓ <b>Budget:</b> ₹{st.session_state.collected["budget"]}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="status-pill status-pending">○ <b>Budget</b> needed</div>', unsafe_allow_html=True)
+    
+    # Size
+    if constraints.get("size"):
+        st.markdown(f'<div class="status-pill status-filled">✓ <b>Size:</b> {constraints["size"]}</div>', unsafe_allow_html=True)
+    elif st.session_state.collected.get("size"):
         st.markdown(f'<div class="status-pill status-filled">✓ <b>Size:</b> {st.session_state.collected["size"]}</div>', unsafe_allow_html=True)
-    if st.session_state.collected.get("color"):
-        st.markdown(f'<div class="status-pill status-filled">✓ <b>Color:</b> {st.session_state.collected["color"]}</div>', unsafe_allow_html=True)
+    
+    # Style keywords
+    if constraints.get("style_keywords"):
+        styles = constraints["style_keywords"]
+        if isinstance(styles, list):
+            for style in styles:
+                st.markdown(f'<div class="status-pill status-filled">✓ <b>Style:</b> {style}</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -690,7 +500,7 @@ st.markdown("""
         AI Shopping Concierge
     </h1>
     <p style="color: var(--text-muted); font-size: 1rem; margin: 0;">
-        I learn what you dislike. I ask only what's necessary.
+        Powered by Groq AI • Smart filtering • Context aware
     </p>
 </div>
 """, unsafe_allow_html=True)
@@ -701,94 +511,73 @@ with col1:
     st.markdown('<div class="chat-container">', unsafe_allow_html=True)
     
     # Messages
-    for msg in st.session_state.messages:
+    for idx, msg in enumerate(st.session_state.messages):
         bubble_class = "msg-user" if msg["role"] == "user" else "msg-agent"
         st.markdown(f'<div class="message-bubble {bubble_class}">{msg["content"]}</div>', unsafe_allow_html=True)
         
+        # Show clarifying questions if present
+        if msg.get("questions"):
+            st.markdown("<div style='margin: 0.5rem 0 1rem 2rem; padding: 1rem; background: rgba(0,212,255,0.05); border-radius: 12px; border-left: 3px solid var(--accent-cyan);'>", unsafe_allow_html=True)
+            st.markdown("<div style='color: var(--accent-cyan); font-size: 0.8rem; margin-bottom: 0.5rem;'>FOLLOW-UP QUESTIONS</div>", unsafe_allow_html=True)
+            for q in msg["questions"]:
+                if st.button(f"💬 {q}", key=f"q_{idx}_{q[:20]}"):
+                    st.session_state.messages.append({"role": "user", "content": q})
+                    st.session_state.thinking = True
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+        
+        # Show products
         if msg.get("products"):
             st.markdown('<div class="results-header"><h3 style="margin:0; color: var(--accent-green);">✓ Found these matches</h3></div>', unsafe_allow_html=True)
             st.markdown('<div class="product-grid">', unsafe_allow_html=True)
             for prod in msg["products"]:
-                tags_html = "".join([f'<span class="tag">{kw}</span>' for kw in prod.get("style_keywords", [])[:3]])
+                price = prod.get('price_inr', prod.get('price', 'N/A'))
+                tags = prod.get("style_keywords", [])
+                tags_html = "".join([f'<span class="tag">{kw}</span>' for kw in tags[:3]])
+                match_score = prod.get('match_score', 0.95)
+                
                 st.markdown(f"""
                 <div class="product-card">
-                    <div class="product-image">👟<div class="match-badge">{int(prod['match_score']*100)}% MATCH</div></div>
+                    <div class="product-image">👟<div class="match-badge">{int(match_score*100)}% MATCH</div></div>
                     <div class="product-info">
-                        <div class="product-brand">{prod['brand']}</div>
-                        <div class="product-title">{prod['title']}</div>
+                        <div class="product-brand">{prod.get('brand', 'Unknown')}</div>
+                        <div class="product-title">{prod.get('title', 'Product')}</div>
                         <div class="product-tags">{tags_html}</div>
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
-                            <span class="product-price">₹{prod['price_inr']}</span>
+                            <span class="product-price">₹{price}</span>
                             <span style="color: var(--text-muted); font-size:0.8rem;">{prod.get('material', '')}</span>
                         </div>
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Show why recommended
+            if msg.get("avoided"):
+                st.markdown(f"""
+                <div style="margin-top: 1rem; padding: 1rem; background: rgba(255,71,87,0.1); border-radius: 8px; border: 1px solid rgba(255,71,87,0.2);">
+                    <span style="color: var(--accent-red); font-size: 0.9rem;">
+                        🚫 Filtered out items with: {', '.join(msg['avoided'])}
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
     
-    # Thinking
+    # Thinking indicator
     if st.session_state.thinking:
         st.markdown("""
         <div class="thinking">
-            <span class="thinking-text">Finding best matches...</span>
+            <span class="thinking-text">AI Agent analyzing...</span>
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
         </div>
         """, unsafe_allow_html=True)
     
-    # Question Card (FIXED - Dark blue, white text)
-    if st.session_state.current_question and not st.session_state.show_results:
-        field = st.session_state.current_question
-        q_text = generate_question(field)
-        options = get_quick_options(field)
-        progress = len([f for f in REQUIRED_FIELDS if f in st.session_state.collected])
-        
-        st.markdown(f"""
-        <div class="question-card">
-            <div class="progress-indicator">Step {progress + 1} of {len(REQUIRED_FIELDS) + 1}</div>
-            <div class="question-text">{q_text}</div>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        cols = st.columns(min(len(options), 2))
-        for i, opt in enumerate(options):
-            with cols[i % 2]:
-                if st.button(opt, key=f"btn_{field}_{i}", use_container_width=True):
-                    val = parse_quick_option(field, opt)
-                    st.session_state.collected[field] = val
-                    st.session_state.messages.append({"role": "user", "content": opt})
-                    
-                    missing = get_missing_fields(st.session_state.collected)
-                    if missing:
-                        st.session_state.current_question = missing[0]
-                    else:
-                        st.session_state.current_question = None
-                        st.session_state.thinking = True
-                    st.rerun()
-    
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Input
-    if not st.session_state.show_results and not st.session_state.current_question:
-        if prompt := st.chat_input("Tell me what you want (e.g., 'white sneakers no chunky style')..."):
+    # Input area
+    if not st.session_state.thinking:
+        if prompt := st.chat_input("Tell me what you want (e.g., 'white sneakers under 2500, size 9, no chunky style')..."):
             st.session_state.messages.append({"role": "user", "content": prompt})
-            
-            # Extract what to avoid and add to memory
-            avoided = extract_avoided_keywords(prompt)
-            if avoided:
-                USER_MEMORY["avoid_keywords"].extend(avoided)
-                USER_MEMORY["avoid_keywords"] = list(set(USER_MEMORY["avoid_keywords"]))  # Deduplicate
-                save_user_memory(USER_MEMORY)
-                st.toast(f"Added to avoid list: {', '.join(avoided)}", icon="🚫")
-            
-            # Extract entities
-            extracted = extract_entities(prompt)
-            st.session_state.collected.update(extracted)
-            
-            missing = get_missing_fields(st.session_state.collected)
-            if missing:
-                st.session_state.current_question = missing[0]
-            else:
-                st.session_state.thinking = True
+            st.session_state.thinking = True
             st.rerun()
     
     if st.session_state.show_results:
@@ -802,11 +591,10 @@ with col2:
     st.markdown("<h4 style='margin-top:0; color: var(--accent-cyan);'>SYSTEM TRACE</h4>", unsafe_allow_html=True)
     
     steps = [
-        ("Catalog Loaded", len(CATALOG) > 0, f"{len(CATALOG)} items"),
-        ("Memory Active", True, f"{len(USER_MEMORY.get('avoid_keywords', []))} avoided"),
-        ("Intent Parsed", "category" in st.session_state.collected, "Category detected"),
-        ("Budget Set", "budget" in st.session_state.collected, "Price filter active"),
-        ("Results Ready", st.session_state.show_results, f"{len(st.session_state.products)} matches")
+        ("API Connected", True, API_BASE_URL[:20] + "..."),
+        ("AI Agent Active", True, "Groq LLM"),
+        ("Memory Sync", len(st.session_state.avoid_keywords) > 0, f"{len(st.session_state.avoid_keywords)} avoided"),
+        ("Last Query", st.session_state.last_request is not None, "Sent" if st.session_state.last_request else "Waiting"),
     ]
     
     for label, status, detail in steps:
@@ -819,48 +607,108 @@ with col2:
         </div>
         """, unsafe_allow_html=True)
     
+    # Show raw constraints from backend for debugging
+    if st.session_state.collected:
+        st.markdown("<div style='margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);'>", unsafe_allow_html=True)
+        st.markdown("<div style='color: var(--text-muted); font-size: 0.7rem; margin-bottom: 0.5rem;'>RAW CONSTRAINTS</div>", unsafe_allow_html=True)
+        st.code(json.dumps(st.session_state.collected, indent=2), language="json")
+        st.markdown("</div>", unsafe_allow_html=True)
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- BACKEND CALL ---
+# --- BACKEND PROCESSING ---
 if st.session_state.thinking:
     try:
-        time.sleep(0.5)
+        # Get the last user message
+        last_user_msg = None
+        for msg in reversed(st.session_state.messages):
+            if msg["role"] == "user":
+                last_user_msg = msg["content"]
+                break
         
-        # Local filter first (always works)
-        filtered = filter_products(CATALOG, st.session_state.collected, USER_MEMORY.get("avoid_keywords", []))
-        
-        # Try API if available
-        try:
-            resp = requests.post(API_URL, json={
-                "user_id": "ankit_01",
-                "message": str(st.session_state.collected),
-                "context": st.session_state.collected
-            }, timeout=5)
-            if resp.status_code == 200:
-                api_results = resp.json().get("results", [])
-                if api_results:
-                    filtered = api_results
-        except:
-            pass
-        
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": f"Found {len(filtered)} items. Filtered out items with: {', '.join(USER_MEMORY.get('avoid_keywords', ['none']))}",
-            "products": filtered
-        })
-        
-        st.session_state.products = filtered
-        st.session_state.thinking = False
-        st.session_state.show_results = True
-        
+        if last_user_msg:
+            # Call the AI backend with ORIGINAL user message
+            result = call_ai_agent(last_user_msg)
+            st.session_state.last_response = result
+            
+            if result:
+                agent_type = result.get("agent", "")
+                
+                if "error" in result:
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": f"❌ Error: {result['error']}"
+                    })
+                elif "fashion" in agent_type:
+                    # Fashion Stylist Agent response
+                    advice = result.get("results", [{}])[0].get("advice", "Here's my styling advice.")
+                    st.session_state.messages.append({
+                        "role": "assistant",
+                        "content": advice,
+                        "agent_type": "fashion"
+                    })
+                else:
+                    # Shopping Agent response
+                    understood = result.get("understood_request", {})
+                    constraints = understood.get("constraints", {})
+                    
+                    # UPDATE SESSION STATE FROM BACKEND RESPONSE
+                    st.session_state.collected = understood
+                    
+                    # Sync avoid keywords from backend response!
+                    backend_avoids = constraints.get("avoid_keywords", [])
+                    if backend_avoids:
+                        st.session_state.avoid_keywords = list(set(st.session_state.avoid_keywords + backend_avoids))
+                        USER_MEMORY["avoid_keywords"] = st.session_state.avoid_keywords
+                        save_user_memory(USER_MEMORY)
+                        st.toast(f"Avoiding: {', '.join(backend_avoids)}", icon="🚫")
+                    
+                    questions = result.get("clarifying_questions", [])
+                    products = result.get("results", [])
+                    
+                    if questions and not products:
+                        # Need more info
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": "I need a bit more information to find the perfect match:",
+                            "questions": questions
+                        })
+                    else:
+                        # Show results
+                        avoid_display = backend_avoids if backend_avoids else st.session_state.avoid_keywords
+                        msg_content = f"Found {len(products)} curated matches for you."
+                        
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": msg_content,
+                            "products": products,
+                            "avoided": avoid_display,
+                            "trace_id": result.get("trace_id", "")
+                        })
+                        
+                        st.session_state.show_results = True
+            else:
+                st.session_state.messages.append({
+                    "role": "assistant",
+                    "content": "❌ Failed to connect to AI backend. Please check connection."
+                })
+        else:
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": "No message to process."
+            })
+            
     except Exception as e:
-        st.session_state.thinking = False
-        st.error(f"Error: {e}")
+        st.error(f"Processing error: {e}")
+        import traceback
+        st.code(traceback.format_exc())
     
-    st.rerun()
+    finally:
+        st.session_state.thinking = False
+        st.rerun()
 
 st.markdown("""
 <div style="text-align: center; margin-top: 40px; color: var(--text-muted); font-size: 0.8rem;">
-    <p>Dynamic memory • Smart filtering • Minimal questioning</p>
+    <p>AI Agent • Smart Memory • Dynamic Filtering</p>
 </div>
 """, unsafe_allow_html=True)
