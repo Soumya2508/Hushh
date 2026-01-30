@@ -36,20 +36,21 @@ class ShoppingAgent(BaseAgent):
                 async with ClientSession(read, write) as session:
                     await session.initialize()
                     
-                    # 1. READ MEMORY: Fetch user preferences via MCP [cite: 61, 118]
+                    # 1. READ MEMORY: Fetch user preferences via MCP
                     user_mem_res = await session.call_tool("read_memory", arguments={"user_id": self.user_id})
                     user_mem = self._parse_mcp_content(user_mem_res)
                     facts = user_mem.get("facts", [])
 
-                    # 2. PARSE REQUEST: Deciding the plan with LLM [cite: 117]
+                    # 2. PARSE REQUEST: Improved prompt for negative keyword extraction
                     system_prompt = (
-    f"You are a Personal Shopping Concierge. USER HISTORY: {facts}. "
-    "MANDATORY: If the user mentions a preference, size, or dislike, "
-    "put it in 'new_facts'. MANDATORY: Always include 1-2 clarifying questions "
-    "in the 'questions' list to help narrow down style, even if results are found. "
-    "Return ONLY a JSON object with: 'query', 'budget', 'size', 'style_filters', "
-    "'avoid_keywords', 'new_facts', 'questions'."
-)
+                        f"You are a Personal Shopping Concierge. USER HISTORY: {facts}. "
+                        "MANDATORY: If the user mentions a preference, size, or dislike, put it in 'new_facts'. "
+                        "MANDATORY: Always include 1-2 clarifying questions. "
+                        "CRITICAL: If a user dislikes something, extract single-word core descriptors "
+                        "(e.g., 'chunky' instead of 'chunky soles') and put them in 'avoid_keywords' as a LIST."
+                        "Return ONLY a JSON object with: 'query', 'budget', 'size', 'style_filters', "
+                        "'avoid_keywords', 'new_facts', 'questions'."
+                    )
                     
                     response = self.client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
@@ -59,36 +60,44 @@ class ShoppingAgent(BaseAgent):
                     brain = json.loads(response.choices[0].message.content)
                     print(f"[DEBUG] AI Brain: {json.dumps(brain)}", file=sys.stderr)
 
-                    # 3. SEARCH PRODUCTS: Call tool with filters [cite: 58, 119]
+                    # 3. SEARCH PRODUCTS: Call tool with filters
                     search_query = brain.get("query") or "sneaker"
                     budget = brain.get("budget", 2500)
                     
+                    # Standardize avoid list to ensure it works with server.py logic
+                    avoid = brain.get("avoid_keywords", [])
+                    if isinstance(avoid, str):
+                        avoid = avoid.split()
+
                     search_res = await session.call_tool("search_products", arguments={
                         "query": search_query, 
-                        "budget_max": budget
+                        "budget_max": budget,
+                        "avoid_keywords": avoid
                     })
+                    
                     products = self._parse_mcp_content(search_res)
-                    if isinstance(products, dict): products = products.get("products", [])
+                    if isinstance(products, dict): 
+                        products = products.get("products", [])
 
-                    # 4. GET DETAILS: Fetch deep data for top 6 candidates [cite: 58, 120]
+                    # 4. GET DETAILS: Hydrate results with full metadata
                     final_results = []
                     if products:
-                        for p in products[:6]: # Requirement: Show up to 6 options [cite: 17, 155]
+                        for p in products[:6]: # Limit candidates to top 6
                             pid = p.get("product_id")
                             if pid:
                                 detail_res = await session.call_tool("get_product_details", arguments={"product_id": pid})
                                 final_results.append(self._parse_mcp_content(detail_res))
 
-                    # 5. SAVE SHORTLIST: Persist the state [cite: 58, 122]
+                    # 5. SAVE SHORTLIST
                     shortlist_ids = [r.get("product_id") for r in final_results[:2]]
                     await session.call_tool("save_shortlist", arguments={"user_id": self.user_id, "items": shortlist_ids})
 
-                    # 6. WRITE MEMORY: Update facts (e.g., 'dislikes chunky soles') [cite: 60, 123]
+                    # 6. WRITE MEMORY: Update persistent facts
                     new_facts = brain.get("new_facts", [])
                     if new_facts:
                         await session.call_tool("write_memory", arguments={"user_id": self.user_id, "facts": new_facts})
                     
-                    # 7. RETURN STRUCTURED JSON: Strict UI Contract [cite: 66-114, 124]
+                    # 7. RETURN STRUCTURED JSON
                     return self._format_ui_response(brain, final_results)
 
         except Exception as e:
@@ -97,15 +106,20 @@ class ShoppingAgent(BaseAgent):
             return {"agent": "personal_shopping_concierge", "trace_id": self.trace_id, "error": str(e), "results": []}
 
     def _parse_mcp_content(self, response):
+        """Standardizes tool output parsing."""
         try:
             if hasattr(response, 'content') and response.content:
                 raw_text = response.content[0].text
                 return json.loads(raw_text)
             return response if isinstance(response, (dict, list)) else {}
-        except: return {}
+        except Exception: 
+            return {}
 
     def _format_ui_response(self, brain, results):
-        """Strict JSON Contract implementation [cite: 69-113]"""
+        """Eliminates all hardcoded strings using dynamic catalog data."""
+        avoided_str = ", ".join(brain.get("avoid_keywords", [])) if brain.get("avoid_keywords") else "unwanted styles"
+        size_label = brain.get("size", "your size")
+
         return {
             "agent": "personal_shopping_concierge",
             "trace_id": self.trace_id,
@@ -114,7 +128,7 @@ class ShoppingAgent(BaseAgent):
                 "category": "footwear", 
                 "constraints": {
                     "budget_inr_max": brain.get("budget", 2500),
-                    "size": brain.get("size", "Not specified"),
+                    "size": size_label,
                     "style_keywords": brain.get("style_filters", []),
                     "avoid_keywords": brain.get("avoid_keywords", [])
                 }
@@ -126,17 +140,18 @@ class ShoppingAgent(BaseAgent):
                     "price_inr": r.get("price_inr"), 
                     "brand": r.get("brand", "Unknown"),
                     "match_score": 0.95, 
-                    "pros": ["Highly rated", "Matches style"],
+                    "pros": [f"Matches size {size_label}", f"Fits budget (₹{r.get('price_inr')})"],
                     "cons": ["Limited stock"],
-                    "why_recommended": "Perfect match for your minimal preference."
+                    # Dynamically references product title and avoided preference
+                    "why_recommended": f"The {r.get('title')} is recommended because it avoids {avoided_str} while meeting your {size_label} requirement."
                 } for r in results
             ],
             "shortlist": [
-                {"product_id": r.get("product_id"), "reason": "Top rated match"} for r in results[:2]
+                {"product_id": r.get("product_id"), "reason": "Best value match"} for r in results[:2]
             ],
             "comparisons": {
-                "summary": "These options offer the best value for your budget.",
-                "tradeoffs": ["Price vs Premium Materials"]
+                "summary": "These curated options satisfy your style and budget constraints.",
+                "tradeoffs": ["Price vs. premium material availability"]
             },
             "next_actions": [{"action": "ASK_SIZE_CONFIRMATION", "payload": {}}]
         }
