@@ -6,7 +6,9 @@
     "brand": "StepClean",
     "style_keywords": ["minimal", "white", "sleek"],
     "category": "footwear",
-    "size": "9"
+    "sub_category": "sneakers",
+    "size": "9",
+    "material": "Faux Leather"
   },
   {
     "product_id": "snkr-002",
@@ -15,96 +17,96 @@
     "brand": "UrbanCloud",
     "style_keywords": ["chunky", "white", "bold"],
     "category": "footwear",
-    "size": "9"
+    "sub_category": "sneakers",
+    "size": "9",
+    "material": "Mesh"
   },
   {
-    "product_id": "snkr-003",
-    "title": "Classic Court White",
-    "price_inr": 1800,
-    "brand": "Heritage",
-    "style_keywords": ["minimal", "white", "classic"],
-    "category": "footwear",
-    "size": "9"
+    "product_id": "top-013",
+    "title": "Essential Navy Crewneck",
+    "price_inr": 1200,
+    "brand": "DailyBase",
+    "style_keywords": ["minimal", "navy", "casual"],
+    "category": "apparel",
+    "sub_category": "t-shirts",
+    "size": "M",
+    "material": "Cotton"
   },
   {
-    "product_id": "snkr-004",
-    "title": "Urban Low Trainer",
-    "price_inr": 2100,
+    "product_id": "bot-014",
+    "title": "Relaxed Fit Cargo Pants",
+    "price_inr": 2800,
     "brand": "StreetVibe",
-    "style_keywords": ["minimal", "white", "urban"],
-    "category": "footwear",
-    "size": "9"
+    "style_keywords": ["utility", "olive", "loose"],
+    "category": "apparel",
+    "sub_category": "pants",
+    "size": "32",
+    "material": "Cotton Twill"
   },
   {
-    "product_id": "snkr-005",
-    "title": "Pro Leather White",
-    "price_inr": 2450,
-    "brand": "Classics",
-    "style_keywords": ["minimal", "white", "leather"],
-    "category": "footwear",
-    "size": "9"
-  },
-  {
-    "product_id": "snkr-006",
-    "title": "Lite Walk Breathable",
+    "product_id": "acc-015",
+    "title": "Classic Leather Belt",
     "price_inr": 1500,
-    "brand": "SummerBreeze",
-    "style_keywords": ["minimal", "white", "breathable"],
-    "category": "footwear",
-    "size": "9"
+    "brand": "Heritage",
+    "style_keywords": ["formal", "brown", "brass"],
+    "category": "accessories",
+    "sub_category": "belts",
+    "size": "Universal",
+    "material": "Full Grain Leather"
   },
   {
-    "product_id": "snkr-007",
-    "title": "Essential Daily Sneaker",
-    "price_inr": 1950,
-    "brand": "StepClean",
-    "style_keywords": ["minimal", "white", "everyday"],
-    "category": "footwear",
-    "size": "9"
-  },
-  {
-    "product_id": "snkr-008",
-    "title": "Cloud Walk Soft",
-    "price_inr": 2250,
+    "product_id": "snkr-016",
+    "title": "Midnight Runner",
+    "price_inr": 3500,
     "brand": "UrbanCloud",
-    "style_keywords": ["minimal", "white", "soft"],
+    "style_keywords": ["sporty", "black", "breathable"],
     "category": "footwear",
-    "size": "9"
+    "sub_category": "running",
+    "size": "10",
+    "material": "Knit"
   },
   {
-    "product_id": "snkr-009",
-    "title": "Premium White High",
-    "price_inr": 3200,
-    "brand": "Heritage",
-    "style_keywords": ["minimal", "white", "premium"],
-    "category": "footwear",
-    "size": "9"
-  },
-  {
-    "product_id": "snkr-010",
-    "title": "Retro White Sole",
-    "price_inr": 2300,
-    "brand": "Classics",
-    "style_keywords": ["minimal", "white", "retro"],
-    "category": "footwear",
-    "size": "8"
-  },
-  {
-    "product_id": "top-011",
-    "title": "White Linen Shirt",
-    "price_inr": 2300,
-    "brand": "SummerBreeze",
-    "style_keywords": ["breathable", "white", "beach"],
-    "category": "apparel",
-    "size": "L"
-  },
-  {
-    "product_id": "bot-012",
-    "title": "Beige Chino Pants",
+    "product_id": "top-017",
+    "title": "Oxford Button-Down",
     "price_inr": 2100,
-    "brand": "Heritage",
-    "style_keywords": ["smart-casual", "beige", "slim-fit"],
+    "brand": "Classics",
+    "style_keywords": ["smart-casual", "light-blue", "structured"],
     "category": "apparel",
-    "size": "32"
+    "sub_category": "shirts",
+    "size": "L",
+    "material": "Oxford Cloth"
+  },
+  {
+    "product_id": "bot-018",
+    "title": "Dark Indigo Slim Jeans",
+    "price_inr": 2600,
+    "brand": "Heritage",
+    "style_keywords": ["classic", "denim", "indigo"],
+    "category": "apparel",
+    "sub_category": "jeans",
+    "size": "34",
+    "material": "Denim"
+  },
+  {
+    "product_id": "acc-019",
+    "title": "Aviator Sunglasses",
+    "price_inr": 1850,
+    "brand": "SummerBreeze",
+    "style_keywords": ["sleek", "gold", "summer"],
+    "category": "accessories",
+    "sub_category": "eyewear",
+    "size": "M",
+    "material": "Metal"
+  },
+  {
+    "product_id": "snkr-020",
+    "title": "Eco-Canvas Slip-on",
+    "price_inr": 1600,
+    "brand": "SummerBreeze",
+    "style_keywords": ["eco-friendly", "beige", "simple"],
+    "category": "footwear",
+    "sub_category": "casual",
+    "size": "8",
+    "material": "Hemp Canvas"
   }
 ]
