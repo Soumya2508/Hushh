@@ -30,11 +30,17 @@ def _safe_save(filename, data):
         json.dump(data, f, indent=4)
 
 @mcp.tool()
-def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = None):
+def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = None, category: str = None):
     """
-    Core search tool with robust negative filtering for excluded attributes.
+    Core search tool with category filtering and robust negative filtering for excluded attributes.
+    
+    Args:
+        query: Search query (e.g., "white sneakers")
+        budget_max: Maximum budget in INR
+        avoid_keywords: Keywords to exclude from results (checks title AND style_keywords)
+        category: Optional category filter ("footwear", "apparel", "accessories")
     """
-    products = _safe_load("catalog.json") #
+    products = _safe_load("catalog.json")
     
     # 1. STANDARDIZE EXCLUSION LIST
     # Ensures the input is always a flat list of lowercase individual words.
@@ -45,9 +51,13 @@ def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = No
     else:
         avoid_list = []
 
-    # 2. FILTER OUT GENERIC WORDS
-    # Prevents "soles" or "sneaker" from filtering out the entire catalog.
-    avoid_list = [w for w in avoid_list if w not in ["soles", "shoes", "style", "sneaker", "sneakers"]]
+    # 2. FILTER OUT OVERLY GENERIC WORDS that would exclude too much
+    # But keep style-specific words like "chunky", "flashy", "bold" etc.
+    generic_words = ["soles", "shoes", "style", "designs", "design"]
+    avoid_list = [w for w in avoid_list if w not in generic_words]
+    
+    # Debug logging
+    print(f"[SEARCH] Query: {query}, Category: {category}, Avoid: {avoid_list}, Budget: {budget_max}", file=sys.stderr)
     
     query_words = query.lower().split()
     results = []
@@ -56,23 +66,91 @@ def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = No
         title = p.get('title', "").lower()
         keywords = [k.lower() for k in p.get('style_keywords', [])]
         price = p.get('price_inr', 0)
+        product_category = p.get('category', "").lower()
+        product_sub_category = p.get('sub_category', "").lower()
         
-        # 3. EXCLUSION CHECK (Negative Matching)
-        # Skip this item if ANY forbidden word appears in the title or the metadata keywords.
-        is_excluded = any(word in title or any(word in kw for kw in keywords) for word in avoid_list)
+        # 3. CATEGORY FILTER (NEW!)
+        # If category is specified, ONLY show products from that category
+        if category:
+            category_lower = category.lower()
+            # Map common query terms to categories
+            category_mappings = {
+                "sneakers": "footwear",
+                "sneaker": "footwear",
+                "shoes": "footwear",
+                "shoe": "footwear",
+                "runners": "footwear",
+                "running": "footwear",
+                "footwear": "footwear",
+                "shirts": "apparel",
+                "shirt": "apparel",
+                "t-shirts": "apparel",
+                "t-shirt": "apparel",
+                "tee": "apparel",
+                "tees": "apparel",
+                "tops": "apparel",
+                "pants": "apparel",
+                "jeans": "apparel",
+                "apparel": "apparel",
+                "clothing": "apparel",
+                "clothes": "apparel",
+                "accessories": "accessories",
+                "belts": "accessories",
+                "sunglasses": "accessories"
+            }
+            
+            # Get the normalized category
+            normalized_category = category_mappings.get(category_lower, category_lower)
+            
+            # Skip if product doesn't match the category
+            if product_category != normalized_category:
+                continue
+        
+        # 4. EXCLUSION CHECK - Check BOTH title AND style_keywords
+        # Skip this item if ANY forbidden word appears in title OR in style_keywords
+        is_excluded = False
+        for word in avoid_list:
+            # Check if word appears in title
+            if word in title:
+                is_excluded = True
+                break
+            # Check if word matches ANY style keyword (exact or partial match)
+            for kw in keywords:
+                if word in kw or kw in word:
+                    is_excluded = True
+                    break
+            if is_excluded:
+                break
+                
         if is_excluded:
+            print(f"[SEARCH] Excluded: {p.get('title')} (matched avoid word)", file=sys.stderr)
             continue
 
-        # 4. INCLUSION CHECK (Positive Matching)
-        # Match if ANY query word (e.g., 'white') appears in the title or tags.
-        matches_text = any(any(word in title or word in kw for kw in keywords) for word in query_words)
+        # 5. INCLUSION CHECK (Positive Matching)
+        # Match if ANY query word appears in title, style_keywords, or sub_category
+        matches_text = False
+        for word in query_words:
+            if word in title:
+                matches_text = True
+                break
+            if word in product_sub_category:
+                matches_text = True
+                break
+            for kw in keywords:
+                if word in kw:
+                    matches_text = True
+                    break
+            if matches_text:
+                break
         
-        # 5. BUDGET FILTER
+        # 6. BUDGET FILTER
         if matches_text and price <= int(budget_max):
             results.append(p)
     
     # Sort results by price for the UI
     sorted_results = sorted(results, key=lambda x: x.get('price_inr', 0))
+    
+    print(f"[SEARCH] Found {len(sorted_results)} products", file=sys.stderr)
     
     if not sorted_results:
         return {"message": "No products found matching your current preferences and budget."}

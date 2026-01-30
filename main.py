@@ -31,9 +31,19 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title="Hushh Power Agent Platform", lifespan=lifespan)
+
+# CORS configuration - allow frontend origins
+allowed_origins = [
+    "http://localhost:5173",          # Vite dev server
+    "http://localhost:8501",          # Streamlit
+    "http://localhost:3000",          # Alternative dev port
+    "https://*.vercel.app",           # Vercel deployments
+    "*"                               # Fallback for development
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # Allows your Streamlit app to connect
+    allow_origins=["*"],  # Allow all origins for now (can restrict later)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

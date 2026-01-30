@@ -12,6 +12,9 @@ from agent_core.base import BaseAgent
 load_dotenv()
 
 class ShoppingAgent(BaseAgent):
+    # Class-level conversation history per user
+    _conversations = {}
+    
     def __init__(self, user_id):
         super().__init__(user_id)
         # Using Groq for high-speed, free-tier reasoning
@@ -19,6 +22,9 @@ class ShoppingAgent(BaseAgent):
             api_key=os.getenv("OPENAI_API_KEY"),
             base_url="https://api.groq.com/openai/v1"
         )
+        # Initialize conversation history for this user if not exists
+        if user_id not in ShoppingAgent._conversations:
+            ShoppingAgent._conversations[user_id] = []
 
     async def process_request(self, message: str):
         print(f"[TRACE {self.trace_id}] THOUGHT: Initiating PSC end-to-end loop.")
@@ -41,38 +47,62 @@ class ShoppingAgent(BaseAgent):
                     user_mem = self._parse_mcp_content(user_mem_res)
                     facts = user_mem.get("facts", [])
 
-                    # 2. PARSE REQUEST: Improved prompt for negative keyword extraction
+                    # 2. PARSE REQUEST: Improved prompt for category and negative keyword extraction
                     system_prompt = (
                         f"You are a Personal Shopping Concierge. USER HISTORY: {facts}. "
+                        "MANDATORY: Extract the CATEGORY from the query. "
+                        "CRITICAL CATEGORY RULES: "
+                        "- Use 'apparel' for ANY clothing: shirts, t-shirts, tees, pants, jeans, tops "
+                        "- Use 'footwear' for shoes, sneakers, runners, boots "
+                        "- Use 'accessories' for belts, bags, sunglasses, watches "
                         "MANDATORY: If the user mentions a preference, size, or dislike, put it in 'new_facts'. "
                         "MANDATORY: Always include 1-2 clarifying questions. "
-                        "CRITICAL: If a user dislikes something, extract single-word core descriptors "
-                        "(e.g., 'chunky' instead of 'chunky soles') and put them in 'avoid_keywords' as a LIST."
-                        "Return ONLY a JSON object with: 'query', 'budget', 'size', 'style_filters', "
+                        "CRITICAL: If a user dislikes something or says 'avoid X' or 'no X', extract the core "
+                        "descriptor word (e.g., 'chunky', 'flashy', 'bold') and put it in 'avoid_keywords' as a LIST. "
+                        "Return ONLY a JSON object with: 'query', 'category', 'budget', 'size', 'style_filters', "
                         "'avoid_keywords', 'new_facts', 'questions'."
                     )
                     
+                    # Build messages with conversation history
+                    conversation = ShoppingAgent._conversations[self.user_id]
+                    messages = [{"role": "system", "content": system_prompt}]
+                    
+                    # Add last 5 conversation turns for context
+                    for turn in conversation[-10:]:
+                        messages.append(turn)
+                    
+                    # Add current user message
+                    messages.append({"role": "user", "content": message})
+                    
                     response = self.client.chat.completions.create(
                         model="llama-3.3-70b-versatile",
-                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": message}],
+                        messages=messages,
                         response_format={"type": "json_object"}
                     )
                     brain = json.loads(response.choices[0].message.content)
                     print(f"[DEBUG] AI Brain: {json.dumps(brain)}", file=sys.stderr)
+                    
+                    # Save conversation turn
+                    ShoppingAgent._conversations[self.user_id].append({"role": "user", "content": message})
+                    ShoppingAgent._conversations[self.user_id].append({"role": "assistant", "content": response.choices[0].message.content})
 
                     # 3. SEARCH PRODUCTS: Call tool with filters
                     search_query = brain.get("query") or "sneaker"
                     budget = brain.get("budget", 2500)
+                    category = brain.get("category", None)  # Extract category for filtering
                     
                     # Standardize avoid list to ensure it works with server.py logic
                     avoid = brain.get("avoid_keywords", [])
                     if isinstance(avoid, str):
                         avoid = avoid.split()
+                    
+                    print(f"[DEBUG] Searching - Query: {search_query}, Category: {category}, Avoid: {avoid}", file=sys.stderr)
 
                     search_res = await session.call_tool("search_products", arguments={
                         "query": search_query, 
                         "budget_max": budget,
-                        "avoid_keywords": avoid
+                        "avoid_keywords": avoid,
+                        "category": category
                     })
                     
                     products = self._parse_mcp_content(search_res)
@@ -125,12 +155,13 @@ class ShoppingAgent(BaseAgent):
             "trace_id": self.trace_id,
             "clarifying_questions": brain.get("questions", []),
             "understood_request": {
-                "category": "footwear", 
+                "category": brain.get("category", "unknown"),  # USE ACTUAL EXTRACTED CATEGORY
                 "constraints": {
                     "budget_inr_max": brain.get("budget", 2500),
                     "size": size_label,
                     "style_keywords": brain.get("style_filters", []),
-                    "avoid_keywords": brain.get("avoid_keywords", [])
+                    "avoid_keywords": brain.get("avoid_keywords", []),
+                    "category": brain.get("category", "unknown")  # Also include in constraints
                 }
             },
             "results": [
