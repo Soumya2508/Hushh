@@ -15,11 +15,15 @@ def _safe_load(filename, default=[]):
     """Safely loads JSON data from the data directory."""
     path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(path):
+        print(f"[DEBUG] File not found: {path}", file=sys.stderr)
         return default
     try:
         with open(path, "r") as f:
-            return json.load(f)
-    except Exception:
+            data = json.load(f)
+            print(f"[DEBUG] Loaded {len(data)} items from {filename}", file=sys.stderr)
+            return data
+    except Exception as e:
+        print(f"[DEBUG] Error loading {filename}: {e}", file=sys.stderr)
         return default
 
 def _safe_save(filename, data):
@@ -34,54 +38,99 @@ def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = No
     """
     Core search tool with robust negative filtering for excluded attributes.
     """
-    products = _safe_load("catalog.json") #
+    print(f"\n{'='*60}", file=sys.stderr)
+    print(f"[SEARCH] Called with:", file=sys.stderr)
+    print(f"  query: '{query}'", file=sys.stderr)
+    print(f"  budget_max: {budget_max}", file=sys.stderr)
+    print(f"  avoid_keywords (raw): {avoid_keywords}", file=sys.stderr)
+    print(f"  avoid_keywords type: {type(avoid_keywords)}", file=sys.stderr)
+    
+    products = _safe_load("catalog.json")
+    print(f"[SEARCH] Loaded {len(products)} products from catalog", file=sys.stderr)
     
     # 1. STANDARDIZE EXCLUSION LIST
-    # Ensures the input is always a flat list of lowercase individual words.
     if isinstance(avoid_keywords, str):
         avoid_list = avoid_keywords.lower().split()
+        print(f"[SEARCH] Parsed string to list: {avoid_list}", file=sys.stderr)
     elif isinstance(avoid_keywords, list):
-        avoid_list = " ".join([str(i) for i in avoid_keywords]).lower().split()
+        # FLATTEN NESTED LISTS - THIS IS THE BUG FIX
+        flat_list = []
+        for item in avoid_keywords:
+            if isinstance(item, str):
+                flat_list.extend(item.lower().split())
+            else:
+                flat_list.append(str(item).lower())
+        avoid_list = flat_list
+        print(f"[SEARCH] Flattened list: {avoid_list}", file=sys.stderr)
     else:
         avoid_list = []
+        print(f"[SEARCH] No avoid keywords provided", file=sys.stderr)
 
     # 2. FILTER OUT GENERIC WORDS
-    # Prevents "soles" or "sneaker" from filtering out the entire catalog.
-    avoid_list = [w for w in avoid_list if w not in ["soles", "shoes", "style", "sneaker", "sneakers"]]
+    filtered_words = ["soles", "shoes", "style", "sneaker", "sneakers"]
+    avoid_list = [w for w in avoid_list if w not in filtered_words]
+    print(f"[SEARCH] After filtering generic words: {avoid_list}", file=sys.stderr)
     
     query_words = query.lower().split()
     results = []
+    excluded_products = []  # Track what we exclude for debug
 
     for p in products:
         title = p.get('title', "").lower()
         keywords = [k.lower() for k in p.get('style_keywords', [])]
         price = p.get('price_inr', 0)
         
+        print(f"[SEARCH] Checking: '{p.get('title')}' | keywords: {keywords} | price: {price}", file=sys.stderr)
+        
         # 3. EXCLUSION CHECK (Negative Matching)
-        # Skip this item if ANY forbidden word appears in the title or the metadata keywords.
-        is_excluded = any(word in title or any(word in kw for kw in keywords) for word in avoid_list)
+        is_excluded = False
+        excluded_reason = []
+        
+        for word in avoid_list:
+            if word in title:
+                is_excluded = True
+                excluded_reason.append(f"'{word}' in title")
+                print(f"    ❌ EXCLUDED: '{word}' found in title '{title}'", file=sys.stderr)
+                break
+            if any(word in kw for kw in keywords):
+                is_excluded = True
+                excluded_reason.append(f"'{word}' in keywords")
+                print(f"    ❌ EXCLUDED: '{word}' found in keywords {keywords}", file=sys.stderr)
+                break
+        
         if is_excluded:
+            excluded_products.append({
+                "product": p.get('title'),
+                "reason": excluded_reason
+            })
             continue
 
         # 4. INCLUSION CHECK (Positive Matching)
-        # Match if ANY query word (e.g., 'white') appears in the title or tags.
         matches_text = any(any(word in title or word in kw for kw in keywords) for word in query_words)
         
         # 5. BUDGET FILTER
         if matches_text and price <= int(budget_max):
+            print(f"    ✅ INCLUDED: matches query and budget", file=sys.stderr)
             results.append(p)
+        else:
+            print(f"    ❌ NO MATCH: matches_text={matches_text}, price_ok={price <= int(budget_max)}", file=sys.stderr)
     
     # Sort results by price for the UI
     sorted_results = sorted(results, key=lambda x: x.get('price_inr', 0))
     
-    if not sorted_results:
-        return {"message": "No products found matching your current preferences and budget."}
+    print(f"\n[SEARCH] RESULTS: {len(sorted_results)} included, {len(excluded_products)} excluded", file=sys.stderr)
+    print(f"[SEARCH] Excluded: {[e['product'] for e in excluded_products]}", file=sys.stderr)
+    print(f"{'='*60}\n", file=sys.stderr)
     
-    return {"products": sorted_results}
+    if not sorted_results:
+        return {"message": "No products found matching your current preferences and budget.", "excluded": excluded_products}
+    
+    return {"products": sorted_results, "debug_excluded": excluded_products}
 
 @mcp.tool()
 def get_product_details(product_id: str):
     """Fetches full metadata for a specific product ID."""
+    print(f"[DEBUG] get_product_details called for: {product_id}", file=sys.stderr)
     products = _safe_load("catalog.json")
     product = next((p for p in products if str(p.get("product_id")) == str(product_id)), None)
     return product if product else {"error": "Product not found"}
@@ -89,6 +138,7 @@ def get_product_details(product_id: str):
 @mcp.tool()
 def save_shortlist(user_id: str, items: list):
     """Saves a user's shortlisted items to disk."""
+    print(f"[DEBUG] save_shortlist for user {user_id}: {items}", file=sys.stderr)
     shortlists = _safe_load("shortlists.json", default={})
     shortlists[user_id] = items
     _safe_save("shortlists.json", shortlists)
@@ -97,12 +147,14 @@ def save_shortlist(user_id: str, items: list):
 @mcp.tool()
 def get_shortlist(user_id: str):
     """Retrieves a user's previously saved shortlist."""
+    print(f"[DEBUG] get_shortlist for user {user_id}", file=sys.stderr)
     shortlists = _safe_load("shortlists.json", default={})
     return shortlists.get(user_id, [])
 
 @mcp.tool()
 def write_memory(user_id: str, facts: list):
     """Updates user preferences (facts) in long-term memory."""
+    print(f"[DEBUG] write_memory for {user_id}: {facts}", file=sys.stderr)
     memories = _safe_load("memory.json", default=[])
     user_mem = next((m for m in memories if m.get("user_id") == user_id), {"user_id": user_id, "facts": []})
     
@@ -117,9 +169,11 @@ def write_memory(user_id: str, facts: list):
 @mcp.tool()
 def read_memory(user_id: str):
     """Fetches stored preferences/facts for a specific user."""
+    print(f"[DEBUG] read_memory for {user_id}", file=sys.stderr)
     memories = _safe_load("memory.json", default=[])
     return next((m for m in memories if m.get("user_id") == user_id), {"user_id": user_id, "facts": []})
 
 if __name__ == "__main__":
+    print("[DEBUG] Starting MCP server...", file=sys.stderr)
     # Start the FastMCP server with stdio transport
     mcp.run(transport="stdio")
