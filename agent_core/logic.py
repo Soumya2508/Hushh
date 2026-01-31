@@ -144,65 +144,71 @@ class ShoppingAgent(BaseAgent):
             return {"agent": "personal_shopping_concierge", "trace_id": self.trace_id, "error": str(e), "results": []}
 
     def _build_system_prompt(self, facts):
-        """Build the system prompt with category rules."""
+        """Build a generalized system prompt for any product category."""
         return (
-            f"You are a Personal Shopping Concierge helping users find products. "
+            f"You are a Personal Shopping Concierge helping users find ANY type of product. "
             f"USER HISTORY: {facts}. "
             "Your task is to understand what the user wants and extract search parameters. "
-            "\n\nCATEGORY EXTRACTION RULES (CRITICAL):\n"
-            "- 'footwear' = shoes, sneakers, runners, boots, sandals, flip-flops, heels, loafers\n"
-            "- 'apparel' = clothing, t-shirts, tees, shirts, pants, jeans, tops, dresses, jackets, hoodies, sweaters\n"
-            "- 'accessories' = belts, bags, sunglasses, watches, caps, hats, wallets, jewelry\n"
-            "\nSYNONYM MATCHING:\n"
-            "- If user says 'clothes' or 'clothing' → category = 'apparel'\n"
-            "- If user says 'shoes' → category = 'footwear'\n"
-            "\nEXTRACT PREFERENCES:\n"
+            "\n\nCATEGORY EXTRACTION (GENERALIZED):\n"
+            "- Extract the CATEGORY from what the user is looking for\n"
+            "- Categories can be ANYTHING: footwear, apparel, accessories, toys, electronics, food, books, etc.\n"
+            "- Use the most general category name (e.g., 'footwear' not 'sneakers')\n"
+            "- If user says 'shoes/sneakers/boots' → category = 'footwear'\n"
+            "- If user says 'shirts/pants/clothes' → category = 'apparel'\n"
+            "- If user says 'toys/games' → category = 'toys'\n"
+            "- If user says 'food/snacks/groceries' → category = 'food'\n"
+            "- If user says 'electronics/gadgets' → category = 'electronics'\n"
+            "\nEXTRACT ALL PREFERENCES:\n"
             "- If user mentions avoid/no/don't like, put descriptors in 'avoid_keywords'\n"
-            "- Extract budget if mentioned (in INR)\n"
-            "- Extract size if mentioned\n"
-            "\nReturn ONLY a JSON object with these fields:\n"
+            "- Extract budget if mentioned (in INR or any currency)\n"
+            "- Extract size/quantity if mentioned\n"
+            "\nReturn ONLY a JSON object:\n"
             "{\n"
-            '  "query": "search terms",\n'
-            '  "category": "footwear|apparel|accessories",\n'
+            '  "query": "specific search terms",\n'
+            '  "category": "general category name",\n'
             '  "budget": number or null,\n'
-            '  "size": "size string or null",\n'
+            '  "size": "size/quantity or null",\n'
             '  "avoid_keywords": ["word1", "word2"],\n'
-            '  "new_facts": ["any new preferences to remember"],\n'
-            '  "questions": ["optional clarifying questions"]\n'
+            '  "new_facts": ["preferences to remember"],\n'
+            '  "questions": ["clarifying questions if needed"]\n'
             "}"
         )
 
     def _normalize_category(self, category, message):
-        """Normalize category based on synonyms in the message."""
-        message_lower = message.lower()
+        """
+        Generalized category normalization.
+        Uses common synonym mappings but accepts ANY category the AI extracts.
+        """
+        if not category:
+            return None
+            
+        category_lower = category.lower().strip()
         
-        # If AI extracted a category, use it
-        if category:
-            category = category.lower()
-            # Map synonyms
-            if category in ["clothes", "clothing", "shirt", "shirts", "t-shirt", "t-shirts", "tee", "tees", "pants", "jeans"]:
-                return "apparel"
-            if category in ["shoes", "shoe", "sneakers", "sneaker", "boots", "sandals"]:
-                return "footwear"
-            if category in ["footwear", "apparel", "accessories"]:
-                return category
+        # Common synonym mappings to normalize similar terms
+        # This is NOT restrictive - just normalizes common variations
+        synonym_map = {
+            # Footwear variations
+            "shoes": "footwear", "shoe": "footwear", "sneakers": "footwear", 
+            "sneaker": "footwear", "boots": "footwear", "sandals": "footwear",
+            "runners": "footwear", "heels": "footwear", "loafers": "footwear",
+            
+            # Apparel variations  
+            "clothes": "apparel", "clothing": "apparel", "shirts": "apparel",
+            "shirt": "apparel", "t-shirts": "apparel", "t-shirt": "apparel",
+            "tees": "apparel", "tee": "apparel", "pants": "apparel", 
+            "jeans": "apparel", "dresses": "apparel", "jackets": "apparel",
+            
+            # Accessories variations
+            "belts": "accessories", "bags": "accessories", "sunglasses": "accessories",
+            "watches": "accessories", "jewelry": "accessories", "caps": "accessories",
+            
+            # Other common categories (expandable)
+            "games": "toys", "gadgets": "electronics", "groceries": "food",
+            "snacks": "food", "books": "books", "phones": "electronics"
+        }
         
-        # Fallback: detect from message
-        footwear_words = ["shoe", "shoes", "sneaker", "sneakers", "boot", "boots", "sandal", "sandals", "runner", "runners"]
-        apparel_words = ["shirt", "shirts", "t-shirt", "t-shirts", "tee", "tees", "pant", "pants", "jeans", "jacket", "hoodie", "dress", "top", "tops", "clothes", "clothing"]
-        accessory_words = ["belt", "belts", "bag", "bags", "sunglasses", "watch", "watches", "cap", "caps", "hat", "hats"]
-        
-        for word in footwear_words:
-            if word in message_lower:
-                return "footwear"
-        for word in apparel_words:
-            if word in message_lower:
-                return "apparel"
-        for word in accessory_words:
-            if word in message_lower:
-                return "accessories"
-        
-        return category  # Return whatever was extracted
+        # Return mapped synonym if exists, otherwise return as-is
+        return synonym_map.get(category_lower, category_lower)
 
     def _parse_mcp_content(self, response):
         """Standardizes tool output parsing."""

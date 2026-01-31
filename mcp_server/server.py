@@ -69,38 +69,36 @@ def search_products(query: str, budget_max: int = 2500, avoid_keywords: any = No
         product_category = p.get('category', "").lower()
         product_sub_category = p.get('sub_category', "").lower()
         
-        # 3. CATEGORY FILTER (NEW!)
-        # If category is specified, ONLY show products from that category
+        # 3. CATEGORY FILTER (GENERALIZED)
+        # If category is specified, filter products by matching category
         if category:
-            category_lower = category.lower()
-            # Map common query terms to categories
-            category_mappings = {
-                "sneakers": "footwear",
-                "sneaker": "footwear",
-                "shoes": "footwear",
-                "shoe": "footwear",
-                "runners": "footwear",
-                "running": "footwear",
-                "footwear": "footwear",
-                "shirts": "apparel",
-                "shirt": "apparel",
-                "t-shirts": "apparel",
-                "t-shirt": "apparel",
-                "tee": "apparel",
-                "tees": "apparel",
-                "tops": "apparel",
-                "pants": "apparel",
-                "jeans": "apparel",
-                "apparel": "apparel",
-                "clothing": "apparel",
-                "clothes": "apparel",
-                "accessories": "accessories",
-                "belts": "accessories",
-                "sunglasses": "accessories"
+            category_lower = category.lower().strip()
+            
+            # Synonym mappings to normalize common variations
+            # Maps specific terms to general category names
+            synonym_map = {
+                # Footwear
+                "sneakers": "footwear", "sneaker": "footwear", "shoes": "footwear",
+                "shoe": "footwear", "runners": "footwear", "running": "footwear",
+                "boots": "footwear", "sandals": "footwear", "heels": "footwear",
+                
+                # Apparel
+                "shirts": "apparel", "shirt": "apparel", "t-shirts": "apparel",
+                "t-shirt": "apparel", "tee": "apparel", "tees": "apparel",
+                "tops": "apparel", "pants": "apparel", "jeans": "apparel",
+                "clothing": "apparel", "clothes": "apparel", "dresses": "apparel",
+                
+                # Accessories
+                "belts": "accessories", "sunglasses": "accessories", "bags": "accessories",
+                "watches": "accessories", "jewelry": "accessories", "caps": "accessories",
+                
+                # Other categories - add as needed
+                "games": "toys", "gadgets": "electronics", "groceries": "food",
+                "snacks": "food", "phones": "electronics"
             }
             
-            # Get the normalized category
-            normalized_category = category_mappings.get(category_lower, category_lower)
+            # Normalize the category using synonym map (or use as-is)
+            normalized_category = synonym_map.get(category_lower, category_lower)
             
             # Skip if product doesn't match the category
             if product_category != normalized_category:
