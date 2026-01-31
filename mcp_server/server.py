@@ -16,11 +16,15 @@ def _safe_load(filename, default=[]):
     """Safely loads JSON data from the data directory."""
     path = os.path.join(DATA_DIR, filename)
     if not os.path.exists(path):
+        print(f"[DEBUG] File not found: {path}", file=sys.stderr)
         return default
     try:
         with open(path, "r") as f:
-            return json.load(f)
-    except Exception:
+            data = json.load(f)
+            print(f"[DEBUG] Loaded {len(data)} items from {filename}", file=sys.stderr)
+            return data
+    except Exception as e:
+        print(f"[DEBUG] Error loading {filename}: {e}", file=sys.stderr)
         return default
 
 def _safe_save(filename, data):
@@ -41,15 +45,33 @@ def search_products(query: str, budget_max: int = 10000, avoid_keywords: any = N
         category: Category filter (footwear, apparel, accessories)
         size: Size filter (e.g., "9", "M", "L")
     """
+    print(f"\n{'='*60}", file=sys.stderr)
+    print(f"[SEARCH] Called with:", file=sys.stderr)
+    print(f"  query: '{query}'", file=sys.stderr)
+    print(f"  budget_max: {budget_max}", file=sys.stderr)
+    print(f"  avoid_keywords (raw): {avoid_keywords}", file=sys.stderr)
+    print(f"  avoid_keywords type: {type(avoid_keywords)}", file=sys.stderr)
+    
     products = _safe_load("catalog.json")
+    print(f"[SEARCH] Loaded {len(products)} products from catalog", file=sys.stderr)
     
     # Standardize exclusion list
     if isinstance(avoid_keywords, str):
         avoid_list = avoid_keywords.lower().split()
+        print(f"[SEARCH] Parsed string to list: {avoid_list}", file=sys.stderr)
     elif isinstance(avoid_keywords, list):
-        avoid_list = " ".join([str(i) for i in avoid_keywords]).lower().split()
+        # FLATTEN NESTED LISTS - THIS IS THE BUG FIX
+        flat_list = []
+        for item in avoid_keywords:
+            if isinstance(item, str):
+                flat_list.extend(item.lower().split())
+            else:
+                flat_list.append(str(item).lower())
+        avoid_list = flat_list
+        print(f"[SEARCH] Flattened list: {avoid_list}", file=sys.stderr)
     else:
         avoid_list = []
+        print(f"[SEARCH] No avoid keywords provided", file=sys.stderr)
 
     # Category synonym mapping - maps query terms to standard categories
     CATEGORY_MAP = {
@@ -163,6 +185,7 @@ def search_products(query: str, budget_max: int = 10000, avoid_keywords: any = N
 @mcp.tool()
 def get_product_details(product_id: str):
     """Fetches full metadata for a specific product ID."""
+    print(f"[DEBUG] get_product_details called for: {product_id}", file=sys.stderr)
     products = _safe_load("catalog.json")
     product = next((p for p in products if str(p.get("product_id")) == str(product_id)), None)
     return product if product else {"error": "Product not found"}
@@ -170,6 +193,7 @@ def get_product_details(product_id: str):
 @mcp.tool()
 def save_shortlist(user_id: str, items: list):
     """Saves a user's shortlisted items to disk."""
+    print(f"[DEBUG] save_shortlist for user {user_id}: {items}", file=sys.stderr)
     shortlists = _safe_load("shortlists.json", default={})
     shortlists[user_id] = items
     _safe_save("shortlists.json", shortlists)
@@ -178,12 +202,14 @@ def save_shortlist(user_id: str, items: list):
 @mcp.tool()
 def get_shortlist(user_id: str):
     """Retrieves a user's previously saved shortlist."""
+    print(f"[DEBUG] get_shortlist for user {user_id}", file=sys.stderr)
     shortlists = _safe_load("shortlists.json", default={})
     return shortlists.get(user_id, [])
 
 @mcp.tool()
 def write_memory(user_id: str, facts: list):
     """Updates user preferences (facts) in long-term memory."""
+    print(f"[DEBUG] write_memory for {user_id}: {facts}", file=sys.stderr)
     memories = _safe_load("memory.json", default=[])
     user_mem = next((m for m in memories if m.get("user_id") == user_id), {"user_id": user_id, "facts": []})
     
@@ -198,9 +224,11 @@ def write_memory(user_id: str, facts: list):
 @mcp.tool()
 def read_memory(user_id: str):
     """Fetches stored preferences/facts for a specific user."""
+    print(f"[DEBUG] read_memory for {user_id}", file=sys.stderr)
     memories = _safe_load("memory.json", default=[])
     return next((m for m in memories if m.get("user_id") == user_id), {"user_id": user_id, "facts": []})
 
 if __name__ == "__main__":
+    print("[DEBUG] Starting MCP server...", file=sys.stderr)
     # Start the FastMCP server with stdio transport
     mcp.run(transport="stdio")
